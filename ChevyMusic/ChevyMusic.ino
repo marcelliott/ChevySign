@@ -1,9 +1,15 @@
 // ****************************************************************************
 //       Sketch: ChevyMusic
-// Date Created: 11/10/2020
+// Date Created: 12/03/2020
 //
 //     Comments: Builds off of example WavTrigAdvanced from Robersonic, to be used
 //               with Robortsonic's WAV Trigger.
+//               Using this sketch on an Arudino Nano connected to a WavTrigger.
+//               The WavTrigger audio output feeds a small amplifier, which drives
+//               2 speakers. All of this is contained inside a 1964 Chevy Implala
+//               grill. Another Arudino controls RGB LEDs. There is a digital signal
+//               from the WavTrigger to the LED Arduino, to signal when an audio
+//               track is playing (to control light blinking while audio is playing).
 //  
 // Programmers: Jamie Robertson, info@robertsonics.com ((initial example code)
 //              Marc Elliott, marc.elliott@live.com (modifications)
@@ -28,6 +34,10 @@
 //    GND  <------> GND
 //    5V   <------> Vcc 
 //    Pin7 <------> TrigOut
+//
+//    Uno           LED Controller Uno
+//    ===           ==================
+//    Pin10<------->Pin4 (See LED sketch)
 //
 //    Pin6 <------> LED
 //
@@ -91,7 +101,7 @@ char gWTrigVersion[VERSION_STRING_LEN];    // WAV Trigger version string
 void setup() {
   
   // Serial monitor
-  Serial.begin(57600);
+  //Serial.begin(57600);
  
   // Initialize the LED pin
   pinMode(LED,OUTPUT);
@@ -127,15 +137,18 @@ void setup() {
   // If bi-directional communication is wired up, then we should by now be able
   //  to fetch the version string and number of tracks on the SD card.
   if (wTrig.getVersion(gWTrigVersion, VERSION_STRING_LEN)) {
-      Serial.print(gWTrigVersion);
-      Serial.print("\n");
+      //Serial.print(gWTrigVersion);
+      //Serial.print("\n");
       gNumTracks = wTrig.getNumTracks();
-      Serial.print("Number of tracks = ");
-      Serial.print(gNumTracks);
-      Serial.print("\n");
+      //Serial.print("Number of tracks = ");
+      //Serial.print(gNumTracks);
+      //Serial.print("\n");
   }
   else
+  {
       Serial.print("WAV Trigger response not available");
+      gNumTracks = 1;
+  }
 
 
   wTrig.samplerateOffset(0);            // Reset our sample rate offset
@@ -167,8 +180,8 @@ void loop() {
   wTrig.update();
   // Get latest state of Passive Infrared Sensor
   gPirState = digitalRead(PIR);
-  Serial.print("Pir:");
-  Serial.println(gPirState);
+  //Serial.print("Pir:");
+  //Serial.println(gPirState);
   
   if (gPirState) {
      gSeqState = PERSON_PRESENT;
@@ -183,8 +196,8 @@ void loop() {
   // previous track has finished
 
   gPlayingState = digitalRead(WAV_PLAYING_PIN);
-  Serial.print("Playing:");
-  Serial.println(gPlayingState);
+  //Serial.print("Playing:");
+  //Serial.println(gPlayingState);
 
   if ((triggered == true ) &&
       (gPlayingState == 1)) {
@@ -197,19 +210,22 @@ void loop() {
      if (gSeqState == PERSON_PRESENT) {
          // Time to play next track
          // Do not play the same track over again
-         //gRandTrack = gLastTrack + 1;
-         //if (gRandTrack > gNumTracks) gRandTrack = MIN_TRACK_NUM;
-         while (gRandTrack == gLastTrack) {
+         gRandTrack = gLastTrack + 1;
+         if (gRandTrack > gNumTracks) gRandTrack = MIN_TRACK_NUM;
+#if 0
+         while ((gRandTrack == gLastTrack) && (gNumTracks > 1))
+         {
             gRandTrack = random(1, gNumTracks);
          }
+#endif
 
-         Serial.print("gRandTrack =");
-         Serial.println(gRandTrack);
+         //Serial.print("gRandTrack =");
+         //Serial.println(gRandTrack);
 
          gLastTrack = gRandTrack;
          wTrig.trackGain(gRandTrack, -40);             // Preset Track 1 gain to -40dB
          wTrig.trackPlayPoly(gRandTrack);               // Start Track 1
-         wTrig.trackFade(gRandTrack, MAX_LEVEL, 100, false);   // Fade Track 1 up to 0db over 2 secs
+         wTrig.trackFade(gRandTrack, MAX_LEVEL, 100, false);   // Fade Track 1 up to 0db over 100ms
          wTrig.update();                      
      } else {
           // nobody around, do nothing

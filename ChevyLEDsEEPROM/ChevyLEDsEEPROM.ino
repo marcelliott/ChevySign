@@ -2,8 +2,10 @@
 
 #include <Adafruit_NeoPixel.h>
 
-#define PIN 6
-#define NUM_LEDS 8
+#define LED_OUTPUT_PIN 6
+#define MUSIC_PLAYING_INPUT_PIN 4
+#define   MUSIC_ACTIVE 0
+#define NUM_LEDS 11
 #define NUM_HL_LEDS 4
 #define NUM_GRILL_LEDS (NUM_LEDS - NUM_HL_LEDS)
 #define ON_BOARD_LED_PIN 13
@@ -22,7 +24,7 @@
 //   NEO_KHZ400  400 KHz (classic 'v1' (not v2) FLORA pixels, WS2811 drivers)
 //   NEO_GRB     Pixels are wired for GRB bitstream (most NeoPixel products)
 //   NEO_RGB     Pixels are wired for RGB bitstream (v1 FLORA pixels, not v2)
-Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_LEDS, PIN, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUM_LEDS, LED_OUTPUT_PIN, NEO_GRB + NEO_KHZ800);
 
 // Globals
 uint8_t brightness = BRIGHTNESS_DEFAULT;
@@ -48,18 +50,29 @@ void setup() {
   Serial.print("Mode read from EEPROM: ");
   Serial.println(mode);
   
-  delay(2000);
+  delay(5000);  // give enough time for MUSIC Arduino to finish startup
   Serial.println("SETUP complete");
 }
 
 void loop() {
   static uint8_t lastMode = mode;
+  static int musicPlayingState = 0;
+  // read the pin from the Robertson Sound Card to indicate if track is playing
+  musicPlayingState = digitalRead(MUSIC_PLAYING_INPUT_PIN);
 
   // read the potentiometers (pots)
-  pot1_val = analogRead(POT1_PIN);
-  pot2_val = analogRead(POT2_PIN);
-  pot3_val = analogRead(POT3_PIN);
-  
+  int new_pot_val;
+  new_pot_val = analogRead(POT1_PIN);
+  new_pot_val = map(new_pot_val, 0, 1023, 0, 255);
+  if (abs(new_pot_val - pot1_val) > 4) pot1_val = new_pot_val;
+  new_pot_val = analogRead(POT2_PIN);
+  new_pot_val = map(new_pot_val, 0, 1023, 0, 255);
+  if (abs(new_pot_val - pot2_val) > 4) pot2_val = new_pot_val;
+  new_pot_val = analogRead(POT3_PIN);
+  new_pot_val = map(new_pot_val, 0, 1023, 0, 255);
+  if (abs(new_pot_val - pot3_val) > 4) pot3_val = new_pot_val;
+
+   
   //Serial.print("Pots");
   //Serial.print(pot1_val);
   //Serial.print(", ");
@@ -68,9 +81,10 @@ void loop() {
   //Serial.print(pot3_val);
   //Serial.println("");
 
-  pot1_val = map(pot1_val, 0, 1023, 0, 255);
-  pot2_val = map(pot2_val, 0, 1023, 0, 255);
-  pot3_val = map(pot3_val, 0, 1023, 0, 255);
+  if (musicPlayingState == MUSIC_ACTIVE) {
+      // Max brightness when music playing
+      pot1_val = 255;
+  }
   
   if (pot1_val != brightness) {
     brightness = pot1_val;
@@ -85,10 +99,20 @@ void loop() {
   
   int i;
   for(i=0; i < NUM_HL_LEDS; i++) {
-     strip.setPixelColor(i, Wheel((pot2_val) & 255));
+     if (musicPlayingState == MUSIC_ACTIVE) {
+        strip.setPixelColor(i, Wheel(random(0,255)));
+     }
+     else {
+        strip.setPixelColor(i, Wheel((pot2_val) & 255));
+     }
   }   
   for(; i < NUM_LEDS; i++) {
-     strip.setPixelColor(i, Wheel((pot3_val) & 255));
+     if (musicPlayingState == MUSIC_ACTIVE) {
+        strip.setPixelColor(i, Wheel(random(0,255)));
+     }
+     else {
+        strip.setPixelColor(i, Wheel((pot3_val) & 255));
+     }
   }       
 
   strip.show(); 
